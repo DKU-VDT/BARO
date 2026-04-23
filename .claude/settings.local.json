@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(/c/BARO/client/node_modules/.bin/tsc --noEmit)",
+      "Bash(py -3.12 --version)",
+      "Bash(py -3.11 --version)",
+      "Bash(py --list)",
+      "Bash(node_modules/.bin/vite build *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}
