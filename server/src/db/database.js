@@ -44,7 +44,6 @@ export async function initDB() {
       user_id      INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
       device_name  TEXT,
       device_id    TEXT,
-      battery      INTEGER,
       connected    BOOLEAN DEFAULT FALSE,
       connected_at TIMESTAMPTZ,
       updated_at   TIMESTAMPTZ DEFAULT NOW()

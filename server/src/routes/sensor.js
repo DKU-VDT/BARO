@@ -5,66 +5,85 @@ import { authenticate } from '../middleware/authenticate.js';
 const router = Router();
 
 // ────────────────────────────────────────────────────────────────────────────
-// GET /api/sensor  — 연결된 센서 조회
+// GET /api/sensor  — 현재 연결된 센서 조회
 // ────────────────────────────────────────────────────────────────────────────
 router.get('/', authenticate, async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT * FROM sensors WHERE user_id = $1',
-    [req.user.id]
-  );
-  res.json({ sensor: rows[0] ?? null });
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, user_id, device_name, device_id, connected, connected_at, updated_at
+       FROM sensors
+       WHERE user_id = $1`,
+      [req.user.id]
+    );
+
+    res.json({ sensor: rows[0] ?? null });
+  } catch (error) {
+    console.error('GET /api/sensor error:', error);
+    res.status(500).json({ message: '센서 정보를 불러오는 중 오류가 발생했습니다.' });
+  }
 });
 
 // ────────────────────────────────────────────────────────────────────────────
 // POST /api/sensor/connect  — 센서 연결 저장
-// body: { deviceName, deviceId, battery }
+// body: { deviceName, deviceId }
 // ────────────────────────────────────────────────────────────────────────────
 router.post('/connect', authenticate, async (req, res) => {
-  const { deviceName, deviceId, battery } = req.body;
-  if (!deviceName || !deviceId)
-    return res.status(400).json({ message: '기기 정보가 필요합니다.' });
+  try {
+    const { deviceName, deviceId } = req.body;
 
-  const { rows } = await pool.query(
-    `INSERT INTO sensors (user_id, device_name, device_id, battery, connected, connected_at)
-     VALUES ($1, $2, $3, $4, TRUE, NOW())
-     ON CONFLICT (user_id) DO UPDATE
-       SET device_name  = EXCLUDED.device_name,
-           device_id    = EXCLUDED.device_id,
-           battery      = EXCLUDED.battery,
-           connected    = TRUE,
-           connected_at = NOW(),
-           updated_at   = NOW()
-     RETURNING *`,
-    [req.user.id, deviceName, deviceId, battery ?? null]
-  );
-  res.json({ sensor: rows[0] });
+    if (!deviceName || !deviceId) {
+      return res.status(400).json({ message: 'deviceName과 deviceId가 필요합니다.' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO sensors (
+          user_id,
+          device_name,
+          device_id,
+          connected,
+          connected_at,
+          updated_at
+        )
+        VALUES ($1, $2, $3, TRUE, NOW(), NOW())
+        ON CONFLICT (user_id) DO UPDATE
+        SET device_name  = EXCLUDED.device_name,
+            device_id    = EXCLUDED.device_id,
+            connected    = TRUE,
+            connected_at = NOW(),
+            updated_at   = NOW()
+        RETURNING id, user_id, device_name, device_id, connected, connected_at, updated_at`,
+      [req.user.id, deviceName, deviceId]
+    );
+
+    res.json({ sensor: rows[0] });
+  } catch (error) {
+    console.error('POST /api/sensor/connect error:', error);
+    res.status(500).json({ message: '센서 연결 저장 중 오류가 발생했습니다.' });
+  }
 });
 
 // ────────────────────────────────────────────────────────────────────────────
 // DELETE /api/sensor  — 센서 연결 해제
 // ────────────────────────────────────────────────────────────────────────────
 router.delete('/', authenticate, async (req, res) => {
-  await pool.query(
-    `UPDATE sensors SET connected = FALSE, updated_at = NOW() WHERE user_id = $1`,
-    [req.user.id]
-  );
-  res.json({ message: '센서 연결이 해제되었습니다.' });
-});
+  try {
+    const { rows } = await pool.query(
+      `UPDATE sensors
+       SET connected = FALSE,
+           updated_at = NOW()
+       WHERE user_id = $1
+       RETURNING id, user_id, device_name, device_id, connected, connected_at, updated_at`,
+      [req.user.id]
+    );
 
-// ────────────────────────────────────────────────────────────────────────────
-// PATCH /api/sensor/battery  — 배터리 상태 업데이트
-// body: { battery }
-// ────────────────────────────────────────────────────────────────────────────
-router.patch('/battery', authenticate, async (req, res) => {
-  const { battery } = req.body;
-  if (battery === undefined) return res.status(400).json({ message: 'battery 값이 필요합니다.' });
-
-  const { rows } = await pool.query(
-    `UPDATE sensors SET battery = $1, updated_at = NOW()
-     WHERE user_id = $2 RETURNING *`,
-    [battery, req.user.id]
-  );
-  res.json({ sensor: rows[0] ?? null });
+    res.json({
+      message: '센서 연결이 해제되었습니다.',
+      sensor: rows[0] ?? null,
+    });
+  } catch (error) {
+    console.error('DELETE /api/sensor error:', error);
+    res.status(500).json({ message: '센서 연결 해제 중 오류가 발생했습니다.' });
+  }
 });
 
 export default router;
