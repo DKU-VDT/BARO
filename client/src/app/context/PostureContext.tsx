@@ -39,6 +39,7 @@ interface PostureContextType {
 }
 
 const BASELINE_KEY = 'baro_posture_baseline';
+const LOCK_KEY     = 'baro_screen_locked';
 const MAX_WARNINGS = 3;
 
 function makeMessages(problem: PostureProblem | null): Record<number, string> {
@@ -62,7 +63,9 @@ function loadBaseline(): PostureBaseline | null {
 }
 
 export const PostureProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [postureState,   setPostureState]   = useState<PostureState>('good');
+  const [postureState,   setPostureState]   = useState<PostureState>(
+    () => localStorage.getItem(LOCK_KEY) === '1' ? 'locked' : 'good'
+  );
   const [warningsCount,  setWarningsCount]  = useState(0);
   const [plantExp,       setPlantExp]       = useState(150);
   const [activeAlert,    setActiveAlert]    = useState<ActiveAlert | null>(null);
@@ -92,7 +95,10 @@ export const PostureProvider: React.FC<{ children: React.ReactNode }> = ({ child
         problem,
       });
       if (next >= MAX_WARNINGS) {
-        setTimeout(() => setPostureState('locked'), 1500);
+        setTimeout(() => {
+          localStorage.setItem(LOCK_KEY, '1');
+          setPostureState('locked');
+        }, 1500);
       }
       return next;
     });
@@ -114,7 +120,10 @@ export const PostureProvider: React.FC<{ children: React.ReactNode }> = ({ child
         problem,
       });
       if (next >= MAX_WARNINGS) {
-        setTimeout(() => setPostureState('locked'), 1500);
+        setTimeout(() => {
+          localStorage.setItem(LOCK_KEY, '1');
+          setPostureState('locked');
+        }, 1500);
       }
       return next;
     });
@@ -128,6 +137,7 @@ export const PostureProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const unlockScreen = () => {
+    localStorage.removeItem(LOCK_KEY);
     setPostureState('good');
     setWarningsCount(0);
     setActiveAlert(null);

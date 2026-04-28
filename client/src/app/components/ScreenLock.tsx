@@ -167,6 +167,42 @@ export const ScreenLock: React.FC = () => {
   const holdElapsedRef                = useRef(0);
   const lastTimestampRef              = useRef<number | null>(null);
 
+  // ── 전체화면 강제 + 이탈 방지 ──────────────────────────────
+  useEffect(() => {
+    if (postureState !== 'locked') return;
+
+    const requestFS = () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+
+    const onFSChange = () => {
+      if (!document.fullscreenElement) setTimeout(requestFS, 200);
+    };
+
+    const onVisibility = () => {
+      if (!document.hidden) requestFS();
+    };
+
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    requestFS();
+    document.addEventListener('fullscreenchange', onFSChange);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('beforeunload', onBeforeUnload);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', onFSChange);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, [postureState]);
+
   // ── 잠금 진입 시 초기화 ─────────────────────────────────────
   useEffect(() => {
     if (postureState !== 'locked') return;

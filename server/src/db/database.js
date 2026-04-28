@@ -93,9 +93,6 @@ export async function initDB() {
       ADD COLUMN IF NOT EXISTS pose_data    JSONB;
   `);
 
-  // 구버전 프롬프트로 생성된 포즈 캐시 초기화 (값이 너무 작아 보이지 않던 문제)
-  await pool.query(`UPDATE exercises SET pose_data = NULL WHERE pose_data IS NOT NULL`);
-
   console.log('[DB] 테이블 초기화 완료');
 }
 

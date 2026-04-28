@@ -88,7 +88,7 @@ router.get('/pose/:id', async (req, res) => {
       PRIMARY MOVEMENT: forward flexion (positive x on Neck +35 to +45, Head +25 to +35 degrees).`,
 
       shoulder_roll: `PEAK POSITION: The character has rolled their shoulders BACKWARD and UP in a circular motion. At the peak, both shoulders are raised and pulled back — the shoulder blades squeeze together. The arms hang slightly behind the torso line with elbows bent slightly back. Upper chest is open.
-      PRIMARY MOVEMENT: both arms swept backward (positive x on LeftArm +30 to +40, RightArm +30 to +40) with slight backward lean on Spine2 (-10 to -15 x).`,
+      PRIMARY MOVEMENT: both arms swept backward (negative x on LeftArm -30 to -40, RightArm -30 to -40). Arms go BEHIND the torso, not in front.`,
 
       scapular_retraction: `PEAK POSITION: The character squeezes their shoulder blades together behind their back. The elbows are pulled backward and outward, like trying to hold a pencil between the shoulder blades. The chest opens forward. The spine extends slightly. Arms form a "W" shape behind the torso.
       PRIMARY MOVEMENT: elbows back (LeftArm x +25 to +35, z +35 to +45; RightArm x +25 to +35, z -35 to -45) and upper back extension (Spine2 x -12 to -20).`,

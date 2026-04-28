@@ -19,7 +19,7 @@ export const Login: React.FC = () => {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '로그인에 실패했습니다.');
+      setError(err instanceof Error ? err.message : '이메일 또는 비밀번호를 다시 확인해주세요.');
     } finally {
       setIsLoading(false);
     }

@@ -15,7 +15,7 @@ const EXERCISE_POSES: Record<string, PoseData> = {
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
     mixamorigLeftArm:[0,0,5], mixamorigRightArm:[0,0,-5],
   },
-  // 목 옆으로 기울이기: 고개를 왼쪽으로 기울이기
+  // 목 옆으로 기울이기: 고개를 오른쪽으로 기울이기
   neck_side_stretch: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[0,0,0], mixamorigSpine2:[0,0,5],
     mixamorigNeck:[-5,0,30], mixamorigHead:[0,0,20],
@@ -29,7 +29,7 @@ const EXERCISE_POSES: Record<string, PoseData> = {
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
     mixamorigLeftArm:[0,0,5], mixamorigRightArm:[0,0,-5],
   },
-  // 어깨 돌리기: 양 팔을 앞으로 들어올린 자세
+  // 어깨 돌리기: 팔을 뒤로 쓸어올린 자세 (어깨뼈 모임)
   shoulder_roll: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[0,0,0], mixamorigSpine2:[0,0,0],
     mixamorigNeck:[0,0,0], mixamorigHead:[0,0,0],
@@ -48,7 +48,7 @@ const EXERCISE_POSES: Record<string, PoseData> = {
     mixamorigSpine:[-5,0,0], mixamorigSpine1:[-12,0,0], mixamorigSpine2:[-22,0,0],
     mixamorigNeck:[-10,0,0], mixamorigHead:[-6,0,0],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
-    mixamorigLeftArm:[15,0,20], mixamorigRightArm:[15,0,-20],
+    mixamorigLeftArm:[0,0,0], mixamorigRightArm:[0,0,0],
   },
 };
 
@@ -82,6 +82,7 @@ function applyMask(data: PoseData, exerciseName?: string): PoseData {
     neck_flexion:       [['mixamorigNeck', 0,  1], ['mixamorigHead', 0,  1]],
     thoracic_extension: [['mixamorigSpine2', 0, -1], ['mixamorigSpine1', 0, -1]],
     scapular_retraction:[['mixamorigSpine2', 0, -1]],
+    shoulder_roll:      [['mixamorigLeftArm', 0, -1], ['mixamorigRightArm', 0, -1]],
   };
   const dirRules = exerciseName ? (DIR[exerciseName] ?? []) : [];
 

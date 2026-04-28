@@ -27,15 +27,26 @@ function getToken() {
 
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getToken();
-  const res = await fetch(`/api${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
-  const data = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new Error('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+  }
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    if (!res.ok) throw new Error('요청에 실패했습니다.');
+    return data;
+  }
   if (!res.ok) throw new Error(data.message ?? '요청에 실패했습니다.');
   return data;
 }

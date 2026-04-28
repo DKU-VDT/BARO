@@ -120,17 +120,21 @@ router.post('/login', async (req, res) => {
   if (!email || !password)
     return res.status(400).json({ message: '이메일과 비밀번호를 입력해주세요.' });
 
-  const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-  if (rows.length === 0)
-    return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (rows.length === 0)
+      return res.status(401).json({ message: '이메일 또는 비밀번호를 다시 확인해주세요.' });
 
-  const user = rows[0];
-  const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid)
-    return res.status(401).json({ message: '이메일 또는 비밀번호가 올바르지 않습니다.' });
+    const user = rows[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid)
+      return res.status(401).json({ message: '이메일 또는 비밀번호를 다시 확인해주세요.' });
 
-  const token = signToken(user);
-  res.json({ token, user: safeUser(user) });
+    const token = signToken(user);
+    res.json({ token, user: safeUser(user) });
+  } catch (err) {
+    res.status(500).json({ message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' });
+  }
 });
 
 // ────────────────────────────────────────────────────────────────────────────
