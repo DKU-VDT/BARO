@@ -65,7 +65,10 @@ function computeMetrics(lms: Lm[], vw: number, vh: number): PostureBaseline {
   };
   const cva = (calcCVA(leftEar, leftSh) + calcCVA(rightEar, rightSh)) / 2;
 
-  return { shoulderCenterY, headDeviation, shoulderTilt, neckAngle, cva };
+  // 6. 귀 라인 기울기 (목 옆 스트레칭 기준값용)
+  const lateralTilt = Math.atan2(leftEar.y - rightEar.y, rightEar.x - leftEar.x) * (180 / Math.PI);
+
+  return { shoulderCenterY, headDeviation, shoulderTilt, neckAngle, cva, lateralTilt };
 }
 
 function averageBaseline(samples: PostureBaseline[]): PostureBaseline {
@@ -76,6 +79,7 @@ function averageBaseline(samples: PostureBaseline[]): PostureBaseline {
     shoulderTilt:    samples.reduce((s, x) => s + x.shoulderTilt, 0) / n,
     neckAngle:       samples.reduce((s, x) => s + x.neckAngle, 0) / n,
     cva:             samples.reduce((s, x) => s + x.cva, 0) / n,
+    lateralTilt:     samples.reduce((s, x) => s + x.lateralTilt, 0) / n,
   };
 }
 

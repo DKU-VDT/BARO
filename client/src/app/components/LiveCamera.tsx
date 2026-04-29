@@ -63,8 +63,9 @@ function computeMetrics(lms: Lm[], vw: number, vh: number): PostureBaseline {
   const calcCVA = (e: { x: number; y: number }, s: { x: number; y: number }) =>
     Math.atan2(s.y - e.y, Math.abs(e.x - s.x) + 1) * (180 / Math.PI);
   const cva = (calcCVA(leftEar, leftSh) + calcCVA(rightEar, rightSh)) / 2;
+  const lateralTilt = Math.atan2(leftEar.y - rightEar.y, rightEar.x - leftEar.x) * (180 / Math.PI);
 
-  return { shoulderCenterY, headDeviation, shoulderTilt, neckAngle, cva };
+  return { shoulderCenterY, headDeviation, shoulderTilt, neckAngle, cva, lateralTilt };
 }
 
 function checkBad(cur: PostureBaseline, base: PostureBaseline | null): boolean {

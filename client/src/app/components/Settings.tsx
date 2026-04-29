@@ -45,6 +45,7 @@ export const SettingsPage: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // 알림 설정
   const [settings, setSettings] = useState<Settings>({ push_enabled: true, sound_enabled: true });
@@ -76,11 +77,20 @@ export const SettingsPage: React.FC = () => {
         setNewPassword('');
       }
       setProfileMsg('저장되었습니다.');
+      setIsEditing(false);
     } catch (err) {
       setProfileMsg(err instanceof Error ? err.message : '저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setName(user?.name || '');
+    setCurrentPassword('');
+    setNewPassword('');
+    setProfileMsg('');
+    setIsEditing(false);
   };
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -135,41 +145,59 @@ export const SettingsPage: React.FC = () => {
                     </div>
 
                     <div className="flex-1 flex flex-col min-h-0">
-                      <h3 className="font-bold text-slate-800 mb-3 px-2 shrink-0">계정 정보 설정</h3>
+                      <div className="flex items-center justify-between mb-3 px-2 shrink-0">
+                        <h3 className="font-bold text-slate-800">계정 정보 설정</h3>
+                        {!isEditing && (
+                          <button
+                            onClick={() => setIsEditing(true)}
+                            className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                          >
+                            편집
+                          </button>
+                        )}
+                      </div>
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-1 mb-4 shrink-0">
                         <div className="flex items-center p-3.5 border-b border-slate-200/60">
                           <span className="text-sm font-bold text-slate-700 w-28">이름</span>
-                          <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="flex-1 bg-transparent text-right font-bold text-slate-900 focus:outline-none"
-                          />
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              className="flex-1 bg-transparent text-right font-bold text-slate-900 focus:outline-none"
+                            />
+                          ) : (
+                            <span className="flex-1 text-right font-bold text-slate-900">{user?.name}</span>
+                          )}
                         </div>
                         <div className="flex items-center p-3.5 border-b border-slate-200/60">
                           <span className="text-sm font-bold text-slate-700 w-28">이메일</span>
                           <span className="flex-1 text-right font-medium text-slate-400">{user?.email}</span>
                         </div>
-                        <div className="flex items-center p-3.5 border-b border-slate-200/60">
-                          <span className="text-sm font-bold text-slate-700 w-28">현재 비밀번호</span>
-                          <input
-                            type="password"
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            placeholder="현재 비밀번호"
-                            className="flex-1 bg-transparent text-right font-medium text-slate-900 focus:outline-none placeholder-slate-400"
-                          />
-                        </div>
-                        <div className="flex items-center p-3.5">
-                          <span className="text-sm font-bold text-slate-700 w-28">새 비밀번호</span>
-                          <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="8자 이상"
-                            className="flex-1 bg-transparent text-right font-medium text-slate-900 focus:outline-none placeholder-slate-400"
-                          />
-                        </div>
+                        {isEditing && (
+                          <>
+                            <div className="flex items-center p-3.5 border-b border-slate-200/60">
+                              <span className="text-sm font-bold text-slate-700 w-28">현재 비밀번호</span>
+                              <input
+                                type="password"
+                                value={currentPassword}
+                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                placeholder="현재 비밀번호"
+                                className="flex-1 bg-transparent text-right font-medium text-slate-900 focus:outline-none placeholder-slate-400"
+                              />
+                            </div>
+                            <div className="flex items-center p-3.5">
+                              <span className="text-sm font-bold text-slate-700 w-28">새 비밀번호</span>
+                              <input
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="8자 이상"
+                                className="flex-1 bg-transparent text-right font-medium text-slate-900 focus:outline-none placeholder-slate-400"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {profileMsg && (
@@ -178,13 +206,23 @@ export const SettingsPage: React.FC = () => {
                         </p>
                       )}
 
-                      <button
-                        onClick={handleSaveProfile}
-                        disabled={isSaving}
-                        className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm shrink-0 flex items-center justify-center gap-2"
-                      >
-                        {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> 저장 중...</> : '모든 변경사항 저장'}
-                      </button>
+                      {isEditing && (
+                        <div className="flex gap-3 shrink-0">
+                          <button
+                            onClick={handleCancelEdit}
+                            className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                          >
+                            취소
+                          </button>
+                          <button
+                            onClick={handleSaveProfile}
+                            disabled={isSaving}
+                            className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+                          >
+                            {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> 저장 중...</> : '저장'}
+                          </button>
+                        </div>
+                      )}
 
                       <div className="mt-auto pt-6 flex items-center justify-between border-t border-slate-100 shrink-0 px-2">
                         <button onClick={handleLogout} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 font-bold transition-colors text-sm py-2">

@@ -12,7 +12,7 @@ const WASM_URL  = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/w
 const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 
 const HOLD_SECONDS         = 5;
-const SCORE_THRESHOLD      = 0.72;  // 72% 이상이면 자세 인식 성공
+const SCORE_THRESHOLD      = 0.76;  // 76% 이상이면 자세 인식 성공
 
 type Lm = { x: number; y: number; z: number; visibility?: number };
 
@@ -68,54 +68,57 @@ function evaluateExercise(
 
   switch (exerciseName) {
     case 'chin_tuck': {
-      // CVA 유지 + 머리가 앞으로 나오지 않음 + 어깨 안정
-      const cvaOk       = b ? cva >= b.cva - 3 : cva >= 50;
-      const headBack    = b ? headDeviation <= b.headDeviation + 0.02 : headDeviation < 0.35;
-      const shStable    = b ? Math.abs(shoulderTilt - b.shoulderTilt) < 0.04 : shoulderTilt < 0.05;
-      return (cvaOk ? 0.5 : Math.min(cva / 53, 1) * 0.35)
+      // CVA가 충분히 높고(턱 당겨야 올라감) + 머리가 앞으로 나오지 않음 + 어깨 안정
+      const cvaOk       = b ? cva >= b.cva + 3 : cva >= 63;
+      const headBack    = b ? headDeviation <= b.headDeviation - 0.02 : headDeviation < 0.28;
+      const shStable    = b ? Math.abs(shoulderTilt - b.shoulderTilt) < 0.04 : shoulderTilt < 0.04;
+      return (cvaOk ? 0.5 : Math.min(cva / 66, 1) * 0.30)
            + (headBack ? 0.30 : 0)
            + (shStable ? 0.20 : 0);
     }
 
     case 'neck_side_stretch': {
-      // 귀 라인이 15° 이상 기울어지고 어깨가 올라가지 않음
-      const absTilt  = Math.abs(lateralTilt);
-      const tiltOk   = absTilt >= 15;
-      const tiltScore = tiltOk ? 0.70 : (absTilt / 15) * 0.50;
-      const shOk     = b ? shoulderTilt <= b.shoulderTilt + 0.05 : shoulderTilt < 0.08;
-      return tiltScore + (shOk ? 0.30 : 0.05);
+      // 베이스라인 대비 귀 라인이 20° 이상 추가로 기울어야 통과
+      // 절대값이 아닌 델타값으로 판정 → 자연스럽게 머리 기울어진 사람도 오인식 방지
+      const baseTilt = b ? b.lateralTilt : 0;
+      const deltaTilt = Math.abs(lateralTilt - baseTilt);
+      if (deltaTilt < 20) return (deltaTilt / 20) * 0.65;
+      // 몸통 전체를 기울이는 꼼수 방지: 어깨도 많이 기울면 감점
+      const shPenalty = shoulderTilt > 0.15 ? 0.20 : 0;
+      return Math.min(0.76 + (deltaTilt - 20) / 15 * 0.24 - shPenalty, 1.0);
     }
 
     case 'neck_flexion': {
-      // 코가 귀 중심과 같은 높이 이하 (턱이 가슴 쪽으로)
-      const flexOk    = headAboveEar < 0.05;
-      const flexScore = flexOk ? 0.70 : Math.max(0, (0.10 - headAboveEar) / 0.10) * 0.50;
+      // 코가 귀 중심보다 명확히 아래로 내려가야 통과 (턱이 가슴 쪽으로)
+      const flexOk    = headAboveEar < -0.05;
+      const flexScore = flexOk ? 0.70 : Math.max(0, (0.00 - headAboveEar) / 0.05) * 0.50;
       const shStable  = b ? Math.abs(shoulderTilt - b.shoulderTilt) < 0.04 : shoulderTilt < 0.05;
       return flexScore + (shStable ? 0.30 : 0.10);
     }
 
     case 'shoulder_roll': {
-      // 어깨가 움직이고 있어야 함 — 어깨 기울기가 베이스보다 변화해야 통과
-      const shMoving = b ? Math.abs(shoulderTilt - b.shoulderTilt) > 0.025 : shoulderTilt > 0.03;
-      const uprightOk = b ? cva >= b.cva - 12 : cva >= 40;
-      return (shMoving ? 0.65 : 0.20) + (uprightOk ? 0.35 : 0.10);
+      // 어깨 관절만 평가 — 목/CVA 무관
+      // 한쪽 어깨가 올라가며 기울기 변화가 뚜렷해야 통과
+      const shMoving = b ? Math.abs(shoulderTilt - b.shoulderTilt) > 0.05 : shoulderTilt > 0.06;
+      return shMoving ? 0.90 : 0.15;
     }
 
     case 'scapular_retraction': {
-      // 어깨가 수평 + CVA 개선 + 머리 안 나옴 — 셋 다 충족해야 통과
-      const cvaOk   = b ? cva >= b.cva - 3 : cva >= 50;
-      const levelOk = b ? shoulderTilt < b.shoulderTilt + 0.02 : shoulderTilt < 0.035;
-      const headOk  = b ? headDeviation < b.headDeviation + 0.01 : headDeviation < 0.34;
-      if (!cvaOk || !levelOk || !headOk) return 0.20;
-      return 0.80;
+      // 어깨를 뒤로 모으면 CVA 올라감 + 어깨가 수평 + 머리가 앞으로 나오지 않음
+      const cvaOk   = b ? cva >= b.cva + 4 : cva >= 62;
+      const levelOk = b ? shoulderTilt < b.shoulderTilt + 0.04 : shoulderTilt < 0.04;
+      const headOk  = b ? headDeviation < b.headDeviation - 0.01 : headDeviation < 0.28;
+      return (cvaOk   ? 0.50 : Math.min(cva / 65, 1) * 0.30)
+           + (levelOk ? 0.20 : 0.05)
+           + (headOk  ? 0.30 : 0.05);
     }
 
     case 'thoracic_extension': {
-      // CVA 개선 + 머리 뒤로 + 목 과도한 젖힘 없음
-      const cvaHigh   = b ? cva >= b.cva : cva >= 52;
-      const headGood  = b ? headDeviation <= b.headDeviation + 0.01 : headDeviation < 0.33;
-      const neckRelax = b ? neckAngle <= b.neckAngle + 5 : neckAngle < 25;
-      return (cvaHigh   ? 0.50 : Math.min(cva / 55, 1) * 0.35)
+      // 상체 젖히면 CVA 올라가고 머리가 뒤로 이동해야 함
+      const cvaHigh   = b ? cva >= b.cva + 4 : cva >= 60;
+      const headGood  = b ? headDeviation <= b.headDeviation - 0.02 : headDeviation < 0.28;
+      const neckRelax = b ? neckAngle <= b.neckAngle + 5 : neckAngle < 22;
+      return (cvaHigh   ? 0.50 : Math.min(cva / 63, 1) * 0.30)
            + (headGood  ? 0.30 : 0)
            + (neckRelax ? 0.20 : 0.10);
     }
@@ -166,17 +169,22 @@ export const ScreenLock: React.FC = () => {
   const [score, setScore]             = useState(0);
   const holdElapsedRef                = useRef(0);
   const lastTimestampRef              = useRef<number | null>(null);
+  const [minTimeReady, setMinTimeReady] = useState(false);
 
   // ── 잠금 진입 시 초기화 ─────────────────────────────────────
   useEffect(() => {
     if (postureState !== 'locked') return;
     setPhase('loading');
+    setMinTimeReady(false);
     setHoldProgress(0);
     setScore(0);
     holdElapsedRef.current = 0;
     lastTimestampRef.current = null;
     setCameraReady(false);
     setCameraError(false);
+
+    // 최소 3초 로딩 화면 보장
+    const minTimer = setTimeout(() => setMinTimeReady(true), 3000);
 
     // 운동 랜덤 선택
     setLoadingEx(true);
@@ -188,6 +196,8 @@ export const ScreenLock: React.FC = () => {
       })
       .catch(() => setExercise(null))
       .finally(() => setLoadingEx(false));
+
+    return () => clearTimeout(minTimer);
   }, [postureState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── MediaPipe 초기화 (앱 최초 1회) ──────────────────────────
@@ -225,12 +235,12 @@ export const ScreenLock: React.FC = () => {
     return () => { stream?.getTracks().forEach(t => t.stop()); };
   }, [postureState]);
 
-  // loading → hold 전환
+  // loading → hold 전환 (minTimeReady까지 기다림)
   useEffect(() => {
-    if (postureState === 'locked' && phase === 'loading' && mpReady && cameraReady && !loadingEx) {
+    if (postureState === 'locked' && phase === 'loading' && mpReady && cameraReady && !loadingEx && minTimeReady) {
       setPhase('hold');
     }
-  }, [postureState, phase, mpReady, cameraReady, loadingEx]);
+  }, [postureState, phase, mpReady, cameraReady, loadingEx, minTimeReady]);
 
   // ── 메인 루프: 각도 기반 자세 판정 ──────────────────────────
   const runLoop = useCallback((timestamp: number) => {
@@ -310,6 +320,27 @@ export const ScreenLock: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-8">
+
+      {/* 전체 로딩 오버레이 — z-[110]으로 무조건 위에 표시 */}
+      <AnimatePresence>
+        {phase === 'loading' && (
+          <motion.div
+            key="loading-overlay"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-6 bg-black"
+          >
+            <Loader2 className="w-14 h-14 text-indigo-400 animate-spin" />
+            <div className="text-center">
+              <p className="text-white font-bold text-xl">스트레칭 준비 중...</p>
+              <p className="text-white/40 text-sm mt-2">AI 모델 및 카메라를 불러오는 중입니다</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-center">
 
         {/* ── 왼쪽: 운동 안내 ── */}
@@ -413,19 +444,6 @@ export const ScreenLock: React.FC = () => {
                     {isMatching ? '✓ 자세 인식됨' : `점수 ${Math.round(score * 100)}%`}
                   </div>
                 )}
-
-                {/* 로딩 오버레이 */}
-                <AnimatePresence>
-                  {phase === 'loading' && (
-                    <motion.div
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 gap-3"
-                    >
-                      <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                      <p className="text-white/60 text-sm">준비 중...</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
 
                 {/* 성공 오버레이 */}
                 <AnimatePresence>
