@@ -7,48 +7,58 @@ import * as THREE from 'three';
 type PoseData = Record<string, [number, number, number]>;
 
 // ── 운동 이름별 정확한 포즈 매핑 ────────────────────────────────────
+// 차렷 자세 — 월드 Z축 기준 쿼터니언 (캐릭터가 +Z 방향 기준)
+// 팔이 위로 가면 부호 반전: left +π/2 → -π/2, right -π/2 → +π/2
+const ARM_ATTN_Q: Record<string, THREE.Quaternion> = {
+  mixamorigLeftArm:  new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI * 0.42),
+  mixamorigRightArm: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1),  Math.PI * 0.42),
+};
+// 팔을 쓰는 운동 포즈에서도 차렷 기준값으로 오프셋 적용 (미사용 시 [0,0,0])
+const ATTN_L: [number,number,number] = [0, 0, 0];
+const ATTN_R: [number,number,number] = [0, 0, 0];
+
 const EXERCISE_POSES: Record<string, PoseData> = {
-  // 턱 당기기: 목과 머리를 뒤로 당겨 이중턱 만들기
+  // 턱 당기기: 목·머리만 움직임, 팔 차렷
   chin_tuck: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[0,0,0], mixamorigSpine2:[0,0,0],
     mixamorigNeck:[-20,0,0], mixamorigHead:[-12,0,0],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
-    mixamorigLeftArm:[0,0,5], mixamorigRightArm:[0,0,-5],
+    mixamorigLeftArm:ATTN_L, mixamorigRightArm:ATTN_R,
   },
-  // 목 옆으로 기울이기: 고개를 왼쪽으로 기울이기
+  // 목 옆으로 기울이기: 목·머리만 움직임, 팔 차렷
   neck_side_stretch: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[0,0,0], mixamorigSpine2:[0,0,5],
     mixamorigNeck:[-5,0,30], mixamorigHead:[0,0,20],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
-    mixamorigLeftArm:[0,0,8], mixamorigRightArm:[0,0,-18],
+    mixamorigLeftArm:ATTN_L, mixamorigRightArm:ATTN_R,
   },
-  // 목 앞으로 구부리기: 턱을 가슴 쪽으로 내리기
+  // 목 앞으로 구부리기: 목·머리만 움직임, 팔 차렷
   neck_flexion: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[0,0,0], mixamorigSpine2:[5,0,0],
     mixamorigNeck:[30,0,0], mixamorigHead:[20,0,0],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
-    mixamorigLeftArm:[0,0,5], mixamorigRightArm:[0,0,-5],
+    mixamorigLeftArm:ATTN_L, mixamorigRightArm:ATTN_R,
   },
-  // 어깨 돌리기: 양 팔을 앞으로 들어올린 자세
+  // 어깨 돌리기: 팔 움직임이 핵심
   shoulder_roll: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[0,0,0], mixamorigSpine2:[0,0,0],
     mixamorigNeck:[0,0,0], mixamorigHead:[0,0,0],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
     mixamorigLeftArm:[-40,0,0], mixamorigRightArm:[-40,0,0],
   },
-  // 어깨뼈 모으기: 가슴을 펴고 팔꿈치를 뒤로 당기기
+  // 어깨뼈 모으기: 팔·등 움직임
   scapular_retraction: {
     mixamorigSpine:[0,0,0], mixamorigSpine1:[-5,0,0], mixamorigSpine2:[-15,0,0],
     mixamorigNeck:[-8,0,0], mixamorigHead:[-5,0,0],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
     mixamorigLeftArm:[25,0,35], mixamorigRightArm:[25,0,-35],
   },
-  // 등 펴기: 상체를 뒤로 젖혀 흉추 이완
+  // 등 펴기: 척추·목 움직임, 팔 차렷
   thoracic_extension: {
     mixamorigSpine:[-5,0,0], mixamorigSpine1:[-12,0,0], mixamorigSpine2:[-22,0,0],
     mixamorigNeck:[-10,0,0], mixamorigHead:[-6,0,0],
     mixamorigLeftShoulder:[0,0,0], mixamorigRightShoulder:[0,0,0],
-    mixamorigLeftArm:[15,0,20], mixamorigRightArm:[15,0,-20],
+    mixamorigLeftArm:ATTN_L, mixamorigRightArm:ATTN_R,
   },
 };
 
@@ -177,6 +187,13 @@ function CharacterMesh({ poseData }: { poseData: PoseData }) {
     });
     resolvedRef.current = resolved;
     timeRef.current = 0;
+
+    // 팔 뼈 rest 회전값 확인용 (차렷 값 찾는 중)
+    const armBones = ['mixamorigLeftArm', 'mixamorigRightArm'];
+    armBones.forEach(n => {
+      const entry = resolved.get(n);
+      if (entry) console.log(`[bone] ${n} rest:`, entry.rest.x.toFixed(2), entry.rest.y.toFixed(2), entry.rest.z.toFixed(2));
+    });
   }, [scene, poseData]);
 
   useFrame((_, delta) => {
@@ -196,9 +213,23 @@ function CharacterMesh({ poseData }: { poseData: PoseData }) {
 
     resolvedRef.current.forEach(({ bone, rest }, stdName) => {
       const target = poseData[stdName];
-      // target 없거나 [0,0,0]이면 T-포즈 rest 유지 (lerp하면 팔 등이 이상하게 움직임)
-      if (!target || (target[0] === 0 && target[1] === 0 && target[2] === 0)) {
-        bone.rotation.copy(rest);
+      const isZero = !target || (target[0] === 0 && target[1] === 0 && target[2] === 0);
+
+      if (isZero) {
+        const attnQ = ARM_ATTN_Q[stdName];
+        if (attnQ && bone.parent) {
+          // 월드 공간 회전을 로컬 공간으로 변환: newLocal = P^(-1) × W × P × restQ
+          const pQ = new THREE.Quaternion();
+          bone.parent.getWorldQuaternion(pQ);
+          const restQ = new THREE.Quaternion().setFromEuler(rest);
+          const newLocalQ = pQ.clone().invert()
+            .multiply(attnQ)
+            .multiply(pQ)
+            .multiply(restQ);
+          bone.quaternion.copy(newLocalQ);
+        } else {
+          bone.rotation.copy(rest);
+        }
         return;
       }
       bone.rotation.x = THREE.MathUtils.lerp(rest.x, rest.x + THREE.MathUtils.degToRad(target[0]), smooth);

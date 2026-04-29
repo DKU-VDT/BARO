@@ -10,6 +10,7 @@ export interface PostureBaseline {
   shoulderTilt:    number;
   neckAngle:       number;
   cva:             number;
+  lateralTilt:     number;
 }
 
 export interface ActiveAlert {
@@ -55,7 +56,11 @@ const PostureContext = createContext<PostureContextType | undefined>(undefined);
 function loadBaseline(): PostureBaseline | null {
   try {
     const raw = localStorage.getItem(BASELINE_KEY);
-    return raw ? (JSON.parse(raw) as PostureBaseline) : null;
+    if (!raw) return null;
+    const b = JSON.parse(raw) as PostureBaseline;
+    // 구버전 데이터에 lateralTilt 없을 경우 기본값 0
+    if (b.lateralTilt === undefined) b.lateralTilt = 0;
+    return b;
   } catch {
     return null;
   }
